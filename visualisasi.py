@@ -237,6 +237,7 @@ def buat_network() -> Network:
         bgcolor="white",
         font_color="black",
         neighborhood_highlight=False,
+        cdn_resources="remote",
     )
 
     net.set_options("""

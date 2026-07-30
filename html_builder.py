@@ -90,6 +90,7 @@ def build_html(net, df, G, jumlah_kegiatan, jumlah_periset, bobot_periset, peris
 .stat-card .num{{font-size:44px;font-weight:700;color:#0B4F6C;line-height:1;}}
 .stat-card small{{color:#aaa;font-size:12px;}}
 .stat-card.filter-active{{border:2px solid #e74c3c;}}
+#loadingBar {{ display: none !important; }}
 #infoPanel{{position:fixed;right:-400px;top:0;width:390px;height:100vh;background:#fff;box-shadow:-4px 0 24px rgba(0,0,0,.18);z-index:9999;transition:right .35s cubic-bezier(.4,0,.2,1);overflow-y:auto;font-family:Segoe UI;}}
 #infoPanel.open{{right:0;}}
 #infoPanelHeader{{background:#0B4F6C;color:white;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1;}}
