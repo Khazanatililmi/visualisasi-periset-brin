@@ -277,32 +277,39 @@ function tampilkanInfoPanel(nodeId){
     panel.classList.add('open');
 }
 
-// Interaksi Network
-network.on("click", function(params){
-    if(params.nodes.length == 0){
-        document.getElementById('infoPanel').classList.remove('open');
+// Interaksi Network - dibungkus agar dipanggil setelah drawGraph() selesai
+function initCustomEvents() {
+    if (typeof network === 'undefined' || !network) {
+        setTimeout(initCustomEvents, 100);
         return;
     }
-    var dipilih = params.nodes[0];
-    tampilkanInfoPanel(dipilih);
-    nodes.forEach(function(n){ nodes.update({id:n.id, hidden:true}); });
-    edges.forEach(function(e){ edges.update({id:e.id, hidden:true}); });
-    nodes.update({id:dipilih, hidden:false});
-    network.getConnectedEdges(dipilih).forEach(function(edgeId){
-        var edge = edges.get(edgeId);
-        var tujuan1 = (edge.from == dipilih) ? edge.to : edge.from;
-        nodes.update({id:tujuan1, hidden:false});
-        edges.update({id:edgeId, hidden:false});
-        network.getConnectedEdges(tujuan1).forEach(function(edgeId2){
-            var edge2 = edges.get(edgeId2);
-            var tujuan2 = (edge2.from == tujuan1) ? edge2.to : edge2.from;
-            nodes.update({id:tujuan2, hidden:false});
-            edges.update({id:edgeId2, hidden:false});
+
+    network.on("click", function(params){
+        if(params.nodes.length == 0){
+            document.getElementById('infoPanel').classList.remove('open');
+            return;
+        }
+        var dipilih = params.nodes[0];
+        tampilkanInfoPanel(dipilih);
+        nodes.forEach(function(n){ nodes.update({id:n.id, hidden:true}); });
+        edges.forEach(function(e){ edges.update({id:e.id, hidden:true}); });
+        nodes.update({id:dipilih, hidden:false});
+        network.getConnectedEdges(dipilih).forEach(function(edgeId){
+            var edge = edges.get(edgeId);
+            var tujuan1 = (edge.from == dipilih) ? edge.to : edge.from;
+            nodes.update({id:tujuan1, hidden:false});
+            edges.update({id:edgeId, hidden:false});
+            network.getConnectedEdges(tujuan1).forEach(function(edgeId2){
+                var edge2 = edges.get(edgeId2);
+                var tujuan2 = (edge2.from == tujuan1) ? edge2.to : edge2.from;
+                nodes.update({id:tujuan2, hidden:false});
+                edges.update({id:edgeId2, hidden:false});
+            });
         });
     });
-});
 
-network.on("doubleClick", function(){ resetSemua(); });
+    network.on("doubleClick", function(){ resetSemua(); });
+}
 
 function updateStatistik(visibleIds){
     if(!visibleIds){
@@ -548,7 +555,10 @@ function terapkanFilter(){
 
     html = html.replace('<script src="lib/bindings/utils.js"></script>', '')
     html = html.replace('<body>', '<body>' + header + statistik + filter_panel)
-    
+
+    # Patch drawGraph() agar memanggil initCustomEvents setelah vis.Network siap
+    html = html.replace('drawGraph();', 'drawGraph(); initCustomEvents();')
+
     json_scripts = f'''
 <script id="data-filter" type="application/json">
 {json_filter}
