@@ -172,8 +172,8 @@ def build_html(net, df, G, jumlah_kegiatan, jumlah_periset, bobot_periset, peris
 
     script = """
 <script>
-const dataNode = JSON.parse('__DATAFILTER__');
-const hierarki = JSON.parse('__HIERARKI__');
+const dataNode = JSON.parse(document.getElementById('data-filter').textContent);
+const hierarki = JSON.parse(document.getElementById('data-hierarki').textContent);
 
 const TOTAL_PERISET  = dataNode.filter(function(d){return d.kategori==='periset';}).length;
 const TOTAL_KEGIATAN = dataNode.filter(function(d){return d.kategori==='Kegiatan_Riset';}).length;
@@ -546,9 +546,17 @@ function terapkanFilter(){
 </script>
 """
 
+    html = html.replace('<script src="lib/bindings/utils.js"></script>', '')
     html = html.replace('<body>', '<body>' + header + statistik + filter_panel)
-    script = script.replace("__DATAFILTER__", json_filter.replace("'", "\\'"))
-    script = script.replace("__HIERARKI__", json_hierarki.replace("'", "\\'"))
-    html = html.replace("</body>", script + "</body>")
+    
+    json_scripts = f'''
+<script id="data-filter" type="application/json">
+{json_filter}
+</script>
+<script id="data-hierarki" type="application/json">
+{json_hierarki}
+</script>
+'''
+    html = html.replace("</body>", json_scripts + script + "</body>")
 
     return html
