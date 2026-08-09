@@ -206,7 +206,7 @@ function tampilkanInfoPanel(nodeId){
         title.textContent = 'Kelompok Riset';
         html  = '<span class="info-badge" style="background:#0B4F6C;color:white;">Kelompok Riset</span>';
         html += '<div class="info-row"><span>Nama:</span><br>'+nodeId+'</div>';
-        html += '<div class="info-row"><span>Koneksi (Degree Centrality):</span> '+info.centrality+'</div>';
+        html += '<div class="info-row"><span>Koneksi:</span> '+info.centrality+'</div>';
         html += '<div class="info-row"><span>Jumlah Kegiatan:</span> '+info.jml_kegiatan+'</div>';
         html += '<div class="info-row"><span>Jumlah Periset:</span> '+info.jml_periset+'</div>';
         html += '<hr style="margin:16px 0;border:none;border-top:1px solid #eee;">';
@@ -220,7 +220,7 @@ function tampilkanInfoPanel(nodeId){
         html  = '<span class="info-badge" style="background:#03a9f4;color:white;">Kegiatan Riset</span>';
         html += '<div class="info-row"><span>Judul:</span><br>'+nodeId+'</div>';
         html += '<div class="info-row"><span>Kelompok:</span> '+info.kelompok+'</div>';
-        html += '<div class="info-row"><span>Koneksi (Degree Centrality):</span> '+info.centrality+'</div>';
+        html += '<div class="info-row"><span>Koneksi:</span> '+info.centrality+'</div>';
         html += '<div class="info-row"><span>Jumlah Periset:</span> '+perisetList.length+'</div>';
         html += '<hr style="margin:16px 0;border:none;border-top:1px solid #eee;">';
         html += '<p style="font-size:13px;color:#666;font-weight:600;">Daftar Periset:</p>';
@@ -254,7 +254,7 @@ function tampilkanInfoPanel(nodeId){
         html  = '<span class="info-badge" style="background:'+badgeColor+';color:white;">'+statusLabel+'</span>';
         html += '<div class="info-row"><span>Nama:</span><br>'+nodeId+'</div>';
         html += '<div class="info-row"><span>Total Bobot:</span> '+info.bobot+'</div>';
-        html += '<div class="info-row"><span>Koneksi (Degree Centrality):</span> '+info.centrality+'</div>';
+        html += '<div class="info-row"><span>Koneksi:</span> '+info.centrality+'</div>';
         
         if (info.keterlibatan && info.keterlibatan.length > 0) {
             var sortedKet = info.keterlibatan.slice().sort(function(a, b) {
