@@ -10,6 +10,17 @@ Modul untuk memuat data dari Excel dan menghitung statistik dasar:
 """
 
 import pandas as pd
+import math
+
+def _clean_url(val):
+    """Konversi None, string kosong, dan pandas/float NaN menjadi None."""
+    if val is None:
+        return None
+    if isinstance(val, float) and math.isnan(val):
+        return None
+    if isinstance(val, str) and val.strip() == "":
+        return None
+    return val
 
 
 import os
@@ -36,9 +47,9 @@ def load_data(filepath: str = None) -> pd.DataFrame:
         keg = r.get("kegiatan_riset") or {}
         kel = keg.get("kelompok_riset") or {}
 
-        # Normalisasi URL gambar: pastikan None/kosong menjadi None
-        foto_url = per.get("foto_url") or None
-        logo_url = kel.get("logo_url") or None
+        # Normalisasi URL gambar: None, string kosong, dan pandas NaN → None
+        foto_url = _clean_url(per.get("foto_url"))
+        logo_url = _clean_url(kel.get("logo_url"))
 
         rows.append({
             "Kelompok_Riset": kel.get("nama_kelompok", "-"),

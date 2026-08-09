@@ -147,7 +147,15 @@ def tambah_nodes(
             ukuran = 12 + (bobot_periset[node] * 2)
 
             # Tentukan gambar dari periset_info
-            foto = periset_info.get(node, {}).get("foto_url")
+            # PENTING: Pandas bisa mengembalikan float NaN (bukan None) untuk nilai kosong
+            # NaN tidak valid di JSON dan merusak vis-network di browser
+            foto_raw = periset_info.get(node, {}).get("foto_url")
+            try:
+                import math
+                foto = None if (foto_raw is None or (isinstance(foto_raw, float) and math.isnan(foto_raw)) or foto_raw == "") else foto_raw
+            except Exception:
+                foto = None
+
             if not foto and "eksternal prsdi" in status_lower:
                 foto = "https://ejzmpthmgzfaclpbbtsi.supabase.co/storage/v1/object/public/foto-periset/logo.png"
 
