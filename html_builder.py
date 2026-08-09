@@ -557,7 +557,8 @@ function terapkanFilter(){
     html = html.replace('<body>', '<body>' + header + statistik + filter_panel)
 
     # Patch drawGraph() agar memanggil initCustomEvents setelah vis.Network siap
-    html = html.replace('drawGraph();', 'drawGraph(); initCustomEvents();')
+    # count=1 agar hanya dipatch sekali, tidak double-fire jika kata muncul 2x
+    html = html.replace('drawGraph();', 'drawGraph(); initCustomEvents();', 1)
 
     json_scripts = f'''
 <script id="data-filter" type="application/json">

@@ -96,10 +96,11 @@ def tambah_nodes(
                 net.add_node(
                     node,
                     group="kelompok",
-                    shape="circularImage",
-                    image="",
+                    shape="dot",
                     size=70,
-                    label="",
+                    label=node,
+                    font={"size": 14, "color": "white", "face": "arial"},
+                    color={"background": "#0B4F6C", "border": "#083c52"},
                     title=judul_kelompok,
                 )
 
@@ -182,7 +183,9 @@ def tambah_nodes(
             else:
                 net.add_node(
                     node,
+                    status=status_lower,
                     group=status_lower,
+                    shape="dot",
                     color=warna,
                     size=ukuran,
                     label=nama_pendek(node),

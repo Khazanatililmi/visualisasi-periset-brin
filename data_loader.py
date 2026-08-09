@@ -35,7 +35,11 @@ def load_data(filepath: str = None) -> pd.DataFrame:
         per = r.get("periset") or {}
         keg = r.get("kegiatan_riset") or {}
         kel = keg.get("kelompok_riset") or {}
-        
+
+        # Normalisasi URL gambar: pastikan None/kosong menjadi None
+        foto_url = per.get("foto_url") or None
+        logo_url = kel.get("logo_url") or None
+
         rows.append({
             "Kelompok_Riset": kel.get("nama_kelompok", "-"),
             "Kegiatan_Riset": keg.get("judul_kegiatan", "-"),
@@ -43,8 +47,8 @@ def load_data(filepath: str = None) -> pd.DataFrame:
             "Periset": per.get("nama_lengkap", "-"),
             "Peran": r.get("peran", "Anggota"),
             "Status": per.get("status", "-"),
-            "Foto_URL": per.get("foto_url", ""),
-            "Logo_URL": kel.get("logo_url", "")
+            "Foto_URL": foto_url,
+            "Logo_URL": logo_url
         })
         
     return pd.DataFrame(rows)
@@ -98,7 +102,7 @@ def hitung_statistik(df: pd.DataFrame) -> dict:
         if nama not in periset_info:
             periset_info[nama] = {
                 "status": status,
-                "foto_url": row.get("Foto_URL", ""),
+                "foto_url": row.get("Foto_URL") or None,
                 "keterlibatan": []
             }
         

@@ -1,17 +1,29 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, Response
 import pandas as pd
 import os
-import main  # Memanggil skrip utama untuk update visualisasi
 from supabase import create_client, Client
 
 app = Flask(__name__)
-SUPABASE_URL = "https://ejzmpthmgzfaclpbbtsi.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqem1wdGhtZ3pmYWNscGJidHNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTA3NzQ2NSwiZXhwIjoyMTAwNjUzNDY1fQ.xO-TN_p4NmAuNQ-qCyIpfeJt-zAXTYVYUKlctVFO5HU"
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ejzmpthmgzfaclpbbtsi.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqem1wdGhtZ3pmYWNscGJidHNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTA3NzQ2NSwiZXhwIjoyMTAwNjUzNDY1fQ.xO-TN_p4NmAuNQ-qCyIpfeJt-zAXTYVYUKlctVFO5HU")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# Cache sederhana agar tidak generate ulang graph setiap request
+_html_cache = None
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 @app.route('/')
 def index():
+    global _html_cache
+    # Gunakan cache jika sudah ada (reset cache dengan ?refresh=1)
+    if _html_cache and request.args.get('refresh') != '1':
+        return _html_cache
+    import main  # Import di sini agar tidak jalan saat Vercel load module
     html_output = main.main()
+    _html_cache = html_output
     return html_output
 
 @app.route('/admin')
