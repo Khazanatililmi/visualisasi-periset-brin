@@ -79,7 +79,7 @@ def build_html(net, df, G, jumlah_kegiatan, jumlah_periset, bobot_periset, peris
     <h1 style="margin:0;font-size:36px;">DASHBOARD PERISET</h1>
     <p style="margin-top:8px;font-size:18px;">PR Sains Data dan Informasi</p>
     <p style="margin-top:3px;font-size:15px;">Badan Riset dan Inovasi Nasional</p>
-    <a href="/admin" style="
+    <a href="/login_admin" style="
         position:absolute;
         right:24px;
         top:50%;

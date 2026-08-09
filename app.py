@@ -26,6 +26,10 @@ def index():
     _html_cache = html_output
     return html_output
 
+@app.route('/login_admin')
+def login_admin_page():
+    return send_file(os.path.join(os.path.dirname(__file__), 'admin', 'login_admin.html'))
+
 @app.route('/admin')
 def admin_page():
     return send_file(os.path.join(os.path.dirname(__file__), 'admin', 'admin.html'))
