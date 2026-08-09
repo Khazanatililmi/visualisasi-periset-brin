@@ -75,10 +75,33 @@ def build_html(net, df, G, jumlah_kegiatan, jumlah_periset, bobot_periset, peris
     )
 
     header = """
-<div style="width:100%;background:#0B4F6C;padding:25px;text-align:center;color:white;font-family:Segoe UI;box-shadow:0px 3px 8px rgba(0,0,0,.2);">
+<div style="width:100%;background:#0B4F6C;padding:25px;text-align:center;color:white;font-family:Segoe UI;box-shadow:0px 3px 8px rgba(0,0,0,.2);position:relative;">
     <h1 style="margin:0;font-size:36px;">DASHBOARD PERISET</h1>
     <p style="margin-top:8px;font-size:18px;">PR Sains Data dan Informasi</p>
     <p style="margin-top:3px;font-size:15px;">Badan Riset dan Inovasi Nasional</p>
+    <a href="/admin" style="
+        position:absolute;
+        right:24px;
+        top:50%;
+        transform:translateY(-50%);
+        background:white;
+        color:#0B4F6C;
+        border:none;
+        padding:10px 20px;
+        border-radius:8px;
+        font-size:14px;
+        font-weight:600;
+        font-family:Segoe UI;
+        text-decoration:none;
+        display:inline-flex;
+        align-items:center;
+        gap:7px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.15);
+        transition:all 0.2s ease;
+    " onmouseover="this.style.background='#f0f4f8';this.style.boxShadow='0 4px 14px rgba(0,0,0,0.2)'"
+       onmouseout="this.style.background='white';this.style.boxShadow='0 2px 8px rgba(0,0,0,0.15)'">
+        &#9881; Admin
+    </a>
 </div>
 """
 
@@ -550,15 +573,17 @@ function terapkanFilter(){
 
     setTimeout(function(){ network.fit({animation:{duration:700,easingFunction:"easeInOutQuad"}}); }, 150);
 }
+
+// Mulai inisialisasi event klik setelah semua fungsi didefinisikan
+initCustomEvents();
 </script>
 """
 
     html = html.replace('<script src="lib/bindings/utils.js"></script>', '')
     html = html.replace('<body>', '<body>' + header + statistik + filter_panel)
 
-    # Patch drawGraph() agar memanggil initCustomEvents setelah vis.Network siap
-    # count=1 agar hanya dipatch sekali, tidak double-fire jika kata muncul 2x
-    html = html.replace('drawGraph();', 'drawGraph(); initCustomEvents();', 1)
+    # JANGAN patch drawGraph() — initCustomEvents belum terdefinisi saat itu
+    # initCustomEvents() dipanggil di akhir custom script block setelah didefinisikan
 
     json_scripts = f'''
 <script id="data-filter" type="application/json">
