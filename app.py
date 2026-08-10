@@ -139,11 +139,73 @@ def delete_data():
         per_id = request.args.get('periset_id')
         if not keg_id or not per_id:
             return jsonify({'status': 'error', 'message': 'Missing IDs'}), 400
-            
+
+        # 1. Hapus keanggotaan
         supabase.table('keanggotaan_riset').delete().eq('kegiatan_id', keg_id).eq('periset_id', per_id).execute()
+        cascade_info = []
+
+        # 2. Cek apakah periset masih punya keanggotaan lain
+        sisa_per = supabase.table('keanggotaan_riset').select('id').eq('periset_id', per_id).execute()
+        if len(sisa_per.data) == 0:
+            supabase.table('periset').delete().eq('id', per_id).execute()
+            cascade_info.append('periset')
+
+        # 3. Cek apakah kegiatan masih punya anggota lain
+        sisa_keg = supabase.table('keanggotaan_riset').select('id').eq('kegiatan_id', keg_id).execute()
+        if len(sisa_keg.data) == 0:
+            keg_data = supabase.table('kegiatan_riset').select('kelompok_id').eq('id', keg_id).execute()
+            if keg_data.data:
+                kel_id = keg_data.data[0]['kelompok_id']
+                supabase.table('kegiatan_riset').delete().eq('id', keg_id).execute()
+                cascade_info.append('kegiatan')
+                # 4. Cek apakah kelompok masih punya kegiatan lain
+                sisa_kel = supabase.table('kegiatan_riset').select('id').eq('kelompok_id', kel_id).execute()
+                if len(sisa_kel.data) == 0:
+                    supabase.table('kelompok_riset').delete().eq('id', kel_id).execute()
+                    cascade_info.append('kelompok')
+
         global _html_cache
         _html_cache = None  # Reset cache agar dashboard tampil data terbaru
-        return jsonify({'status': 'success', 'message': 'Data berhasil dihapus'})
+        msg = 'Data berhasil dihapus'
+        if cascade_info:
+            msg += f'. Otomatis dihapus juga: {", ".join(cascade_info)} yang tidak lagi terkoneksi.'
+        return jsonify({'status': 'success', 'message': msg, 'cascade': cascade_info})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/cleanup-orphans', methods=['DELETE'])
+def cleanup_orphans():
+    """Scan dan hapus semua record periset, kegiatan, kelompok yang tidak punya koneksi apapun."""
+    try:
+        deleted = {'periset': 0, 'kegiatan': 0, 'kelompok': 0}
+
+        # 1. Hapus periset orphan (tidak ada di keanggotaan_riset)
+        all_per  = supabase.table('periset').select('id').execute()
+        used_per = {r['periset_id'] for r in supabase.table('keanggotaan_riset').select('periset_id').execute().data}
+        for p in all_per.data:
+            if p['id'] not in used_per:
+                supabase.table('periset').delete().eq('id', p['id']).execute()
+                deleted['periset'] += 1
+
+        # 2. Hapus kegiatan orphan (tidak ada di keanggotaan_riset)
+        all_keg  = supabase.table('kegiatan_riset').select('id, kelompok_id').execute()
+        used_keg = {r['kegiatan_id'] for r in supabase.table('keanggotaan_riset').select('kegiatan_id').execute().data}
+        for k in all_keg.data:
+            if k['id'] not in used_keg:
+                supabase.table('kegiatan_riset').delete().eq('id', k['id']).execute()
+                deleted['kegiatan'] += 1
+
+        # 3. Hapus kelompok orphan (tidak punya kegiatan apapun)
+        all_kel  = supabase.table('kelompok_riset').select('id').execute()
+        used_kel = {r['kelompok_id'] for r in supabase.table('kegiatan_riset').select('kelompok_id').execute().data}
+        for k in all_kel.data:
+            if k['id'] not in used_kel:
+                supabase.table('kelompok_riset').delete().eq('id', k['id']).execute()
+                deleted['kelompok'] += 1
+
+        global _html_cache
+        _html_cache = None
+        return jsonify({'status': 'success', 'deleted': deleted})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

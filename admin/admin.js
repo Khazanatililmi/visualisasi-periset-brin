@@ -174,12 +174,62 @@ async function deleteData(kegId, perId) {
         const res = await fetch(`/api/data?kegiatan_id=${kegId}&periset_id=${perId}`, { method: 'DELETE' });
         const json = await res.json();
         if (json.status === 'success') {
-            loadData(); // reload all data to update analytics
+            // Tampilkan info jika ada cascade delete
+            if (json.cascade && json.cascade.length > 0) {
+                const label = json.cascade.join(', ');
+                alert(`✅ Keanggotaan dihapus.\n\n🗑️ Data berikut juga otomatis dihapus karena tidak lagi terkoneksi: ${label}.`);
+            }
+            loadData();
         } else {
             alert('Gagal hapus: ' + json.message);
         }
     } catch (e) {
         alert('Gagal hapus data');
+    }
+}
+
+async function cleanupOrphans() {
+    const konfirmasi = confirm(
+        '🧹 Bersihkan Data Orphan?\n\n' +
+        'Ini akan menghapus PERMANEN semua:\n' +
+        '• Periset yang tidak terlibat di kegiatan manapun\n' +
+        '• Kegiatan yang tidak punya anggota apapun\n' +
+        '• Kelompok Riset yang tidak punya kegiatan apapun\n\n' +
+        'Lanjutkan?'
+    );
+    if (!konfirmasi) return;
+
+    const btn = document.querySelector('button[onclick="cleanupOrphans()"]');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Membersihkan...';
+
+    try {
+        const res = await fetch('/api/cleanup-orphans', { method: 'DELETE' });
+        const json = await res.json();
+        if (json.status === 'success') {
+            const d = json.deleted;
+            const total = d.periset + d.kegiatan + d.kelompok;
+            if (total === 0) {
+                alert('✅ Database sudah bersih! Tidak ada data orphan ditemukan.');
+            } else {
+                alert(
+                    `✅ Pembersihan selesai!\n\n` +
+                    `🗑️ Dihapus:\n` +
+                    `• ${d.periset} periset\n` +
+                    `• ${d.kegiatan} kegiatan\n` +
+                    `• ${d.kelompok} kelompok riset`
+                );
+                loadData();
+            }
+        } else {
+            alert('Gagal membersihkan: ' + json.message);
+        }
+    } catch (e) {
+        alert('Terjadi kesalahan saat membersihkan data.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 }
 

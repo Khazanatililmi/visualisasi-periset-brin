@@ -125,6 +125,9 @@
                         <a href="/?refresh=1" target="_blank" class="btn btn-outline-primary" title="Re-generate dashboard dari data Supabase terbaru">
                             <i class="bi bi-arrow-clockwise"></i> Refresh Dashboard
                         </a>
+                        <button class="btn btn-outline-danger" onclick="cleanupOrphans()" title="Hapus periset, kegiatan, dan kelompok yang tidak punya koneksi apapun">
+                            <i class="bi bi-trash3"></i> Bersihkan Data Orphan
+                        </button>
                     </div>
                     <div class="input-group" style="width: 300px;">
                         <span class="input-group-text"><i class="bi bi-search"></i></span>
