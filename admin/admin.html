@@ -184,68 +184,64 @@
 
                 <div class="modal-body">
 
-                    <form id="formData">
+                    <form id="formData" novalidate>
 
-                        <div class="mb-3">
-
-                            <label>Kelompok Riset</label>
-
-                            <input type="text" class="form-control" id="kelompok">
-
+                        <div class="alert alert-info py-2 small mb-3">
+                            <i class="bi bi-info-circle-fill"></i>
+                            Pilih dari data yang sudah ada. Gunakan opsi <strong>➕ Buat Baru</strong> jika belum tersedia.
                         </div>
 
+                        <!-- Kelompok Riset -->
                         <div class="mb-3">
-
-                            <label>Kegiatan Riset</label>
-
-                            <input type="text" class="form-control" id="kegiatan">
-
-                        </div>
-
-                        <div class="mb-3">
-
-                            <label>Periset</label>
-
-                            <input type="text" class="form-control" id="periset">
-
-                        </div>
-
-                        <div class="mb-3">
-
-                            <label>Peran</label>
-
-                            <select class="form-select" id="peran">
-
-                                <option>Ketua</option>
-
-                                <option>Anggota</option>
-
+                            <label class="form-label fw-semibold">Kelompok Riset <span class="text-danger">*</span></label>
+                            <select class="form-select" id="kelompok" onchange="onKelompokChange()" required>
+                                <option value="">— Memuat data... —</option>
                             </select>
-
+                            <input type="text" class="form-control mt-2 d-none" id="kelompokBaru" placeholder="Nama kelompok baru...">
                         </div>
 
+                        <!-- Kegiatan Riset (cascade dari kelompok) -->
                         <div class="mb-3">
-
-                            <label>Status</label>
-
-                            <select class="form-select" id="status">
-
-                                <option>Internal PRSDI</option>
-
-                                <option>Eksternal PRSDI</option>
-
-                                <option>Eksternal BRIN</option>
-
+                            <label class="form-label fw-semibold">Kegiatan Riset <span class="text-danger">*</span></label>
+                            <select class="form-select" id="kegiatan" onchange="onKegiatanChange()" required>
+                                <option value="">— Pilih kelompok dulu —</option>
                             </select>
-
+                            <input type="text" class="form-control mt-2 d-none" id="kegiatanBaru" placeholder="Judul kegiatan baru...">
                         </div>
 
+                        <!-- Periset -->
                         <div class="mb-3">
+                            <label class="form-label fw-semibold">Periset <span class="text-danger">*</span></label>
+                            <select class="form-select" id="periset" onchange="onPerisetChange()" required>
+                                <option value="">— Memuat data... —</option>
+                            </select>
+                            <div id="perisetBaruDiv" class="mt-2 d-none">
+                                <input type="text" class="form-control mb-2" id="perisetBaru" placeholder="Nama lengkap periset baru...">
+                                <label class="form-label text-muted small"><i class="bi bi-image"></i> Foto Periset (opsional)</label>
+                                <input type="file" class="form-control" id="foto" accept="image/*">
+                            </div>
+                            <div id="perisetExistingInfo" class="mt-2 alert alert-success py-2 small d-none">
+                                <i class="bi bi-check-circle-fill"></i> Periset sudah terdaftar — status diisi otomatis.
+                            </div>
+                        </div>
 
-                            <label>Foto</label>
-
-                            <input type="file" class="form-control" id="foto">
-
+                        <!-- Peran & Status -->
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Peran <span class="text-danger">*</span></label>
+                                <select class="form-select" id="peran">
+                                    <option>Ketua</option>
+                                    <option selected>Anggota</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
+                                <select class="form-select" id="status">
+                                    <option>Internal PRSDI</option>
+                                    <option>Eksternal PRSDI</option>
+                                    <option>Eksternal BRIN</option>
+                                </select>
+                            </div>
                         </div>
 
                     </form>

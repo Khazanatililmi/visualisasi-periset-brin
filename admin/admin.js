@@ -1,4 +1,5 @@
 let allData = [];
+let optionsData = { kelompok: [], kegiatan: [], periset: [] };
 let filteredData = [];
 let currentPage = 1;
 const rowsPerPage = 10;
@@ -21,6 +22,11 @@ document.addEventListener('DOMContentLoaded', function() {
         currentPage = 1;
         renderTable();
     });
+
+    // Load dropdown options saat modal dibuka
+    document.getElementById('modalTambah').addEventListener('show.bs.modal', loadOptions);
+    // Reset form saat modal ditutup
+    document.getElementById('modalTambah').addEventListener('hidden.bs.modal', resetForm);
 });
 
 async function loadData() {
@@ -177,40 +183,177 @@ async function deleteData(kegId, perId) {
     }
 }
 
+// ─── Cascading Dropdown Functions ────────────────────────────────────────────
+
+async function loadOptions() {
+    try {
+        const res = await fetch('/api/options');
+        optionsData = await res.json();
+        populateKelompok();
+        populatePeriset();
+    } catch (e) {
+        console.error('Gagal memuat opsi dropdown:', e);
+    }
+}
+
+function populateKelompok() {
+    const sel = document.getElementById('kelompok');
+    sel.innerHTML = '<option value="">— Pilih Kelompok Riset —</option>';
+    optionsData.kelompok.forEach(k => {
+        sel.innerHTML += `<option value="${k.id}" data-nama="${k.nama_kelompok}">${k.nama_kelompok}</option>`;
+    });
+    sel.innerHTML += '<option value="__new__">➕ Buat Kelompok Baru</option>';
+    document.getElementById('kelompokBaru').classList.add('d-none');
+    resetKegiatan();
+}
+
+function resetKegiatan() {
+    const sel = document.getElementById('kegiatan');
+    sel.innerHTML = '<option value="">— Pilih kelompok dulu —</option><option value="__new__">➕ Buat Kegiatan Baru</option>';
+    document.getElementById('kegiatanBaru').classList.add('d-none');
+    document.getElementById('kegiatanBaru').value = '';
+}
+
+function populatePeriset() {
+    const sel = document.getElementById('periset');
+    sel.innerHTML = '<option value="">— Pilih Periset —</option>';
+    optionsData.periset.forEach(p => {
+        sel.innerHTML += `<option value="${p.id}" data-nama="${p.nama_lengkap}" data-status="${p.status || ''}">${p.nama_lengkap}</option>`;
+    });
+    sel.innerHTML += '<option value="__new__">➕ Tambah Periset Baru</option>';
+    document.getElementById('perisetBaruDiv').classList.add('d-none');
+    document.getElementById('perisetExistingInfo').classList.add('d-none');
+}
+
+function onKelompokChange() {
+    const sel = document.getElementById('kelompok');
+    const val = sel.value;
+    const newInput = document.getElementById('kelompokBaru');
+
+    if (val === '__new__') {
+        newInput.classList.remove('d-none');
+        // Tampilkan semua kegiatan jika kelompok baru
+        const kegSel = document.getElementById('kegiatan');
+        kegSel.innerHTML = '<option value="">— Isi nama kelompok dulu —</option><option value="__new__">➕ Buat Kegiatan Baru</option>';
+        document.getElementById('kegiatanBaru').classList.add('d-none');
+    } else {
+        newInput.classList.add('d-none');
+        newInput.value = '';
+        // Filter kegiatan berdasar kelompok terpilih
+        const kegSel = document.getElementById('kegiatan');
+        kegSel.innerHTML = '<option value="">— Pilih Kegiatan Riset —</option>';
+        const filtered = val
+            ? optionsData.kegiatan.filter(k => String(k.kelompok_id) === String(val))
+            : optionsData.kegiatan;
+        filtered.forEach(k => {
+            kegSel.innerHTML += `<option value="${k.id}" data-judul="${k.judul_kegiatan}">${k.judul_kegiatan}</option>`;
+        });
+        kegSel.innerHTML += '<option value="__new__">➕ Buat Kegiatan Baru</option>';
+        document.getElementById('kegiatanBaru').classList.add('d-none');
+        document.getElementById('kegiatanBaru').value = '';
+    }
+}
+
+function onKegiatanChange() {
+    const val = document.getElementById('kegiatan').value;
+    const newInput = document.getElementById('kegiatanBaru');
+    if (val === '__new__') {
+        newInput.classList.remove('d-none');
+    } else {
+        newInput.classList.add('d-none');
+        newInput.value = '';
+    }
+}
+
+function onPerisetChange() {
+    const sel = document.getElementById('periset');
+    const val = sel.value;
+    const newDiv = document.getElementById('perisetBaruDiv');
+    const existingInfo = document.getElementById('perisetExistingInfo');
+
+    if (val === '__new__') {
+        newDiv.classList.remove('d-none');
+        existingInfo.classList.add('d-none');
+    } else if (val) {
+        newDiv.classList.add('d-none');
+        existingInfo.classList.remove('d-none');
+        // Auto-fill status dari data existing
+        const dataStatus = sel.options[sel.selectedIndex].getAttribute('data-status') || '';
+        const statusSel = document.getElementById('status');
+        for (let opt of statusSel.options) {
+            if (opt.value.toLowerCase() === dataStatus.toLowerCase()) {
+                opt.selected = true;
+                break;
+            }
+        }
+    } else {
+        newDiv.classList.add('d-none');
+        existingInfo.classList.add('d-none');
+    }
+}
+
+function resetForm() {
+    document.getElementById('formData').reset();
+    document.getElementById('kelompokBaru').classList.add('d-none');
+    document.getElementById('kegiatanBaru').classList.add('d-none');
+    document.getElementById('perisetBaruDiv').classList.add('d-none');
+    document.getElementById('perisetExistingInfo').classList.add('d-none');
+    resetKegiatan();
+}
+
+// ─── Save Data ────────────────────────────────────────────────────────────────
+
 async function saveData() {
     const btn = document.getElementById('btnSimpan');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Menyimpan...';
 
-    const form = document.getElementById('formData');
+    // Resolve nilai kelompok
+    const kelSel = document.getElementById('kelompok');
+    const kelVal = kelSel.value === '__new__'
+        ? document.getElementById('kelompokBaru').value.trim()
+        : (kelSel.options[kelSel.selectedIndex]?.getAttribute('data-nama') || '');
+
+    // Resolve nilai kegiatan
+    const kegSel = document.getElementById('kegiatan');
+    const kegVal = kegSel.value === '__new__'
+        ? document.getElementById('kegiatanBaru').value.trim()
+        : (kegSel.options[kegSel.selectedIndex]?.getAttribute('data-judul') || '');
+
+    // Resolve nilai periset
+    const perSel = document.getElementById('periset');
+    const perVal = perSel.value === '__new__'
+        ? document.getElementById('perisetBaru').value.trim()
+        : (perSel.options[perSel.selectedIndex]?.getAttribute('data-nama') || '');
+
+    // Validasi
+    if (!kelVal || !kegVal || !perVal) {
+        alert('Harap lengkapi semua field yang wajib diisi (*).');
+        btn.disabled = false;
+        btn.innerHTML = 'Simpan';
+        return;
+    }
+
     const formData = new FormData();
-    
-    formData.append('kelompok', document.getElementById('kelompok').value);
-    formData.append('kegiatan', document.getElementById('kegiatan').value);
-    formData.append('periset', document.getElementById('periset').value);
+    formData.append('kelompok', kelVal);
+    formData.append('kegiatan', kegVal);
+    formData.append('periset', perVal);
     formData.append('peran', document.getElementById('peran').value);
     formData.append('status', document.getElementById('status').value);
-    
-    const fotoFile = document.getElementById('foto').files[0];
-    if (fotoFile) {
-        formData.append('foto', fotoFile);
+
+    // Foto hanya jika periset baru
+    if (perSel.value === '__new__') {
+        const fotoFile = document.getElementById('foto').files[0];
+        if (fotoFile) formData.append('foto', fotoFile);
     }
 
     try {
-        const response = await fetch('/api/data', {
-            method: 'POST',
-            body: formData
-        });
-        
+        const response = await fetch('/api/data', { method: 'POST', body: formData });
         const result = await response.json();
-        
+
         if (result.status === 'success') {
-            // Tutup modal
-            const modalEl = document.getElementById('modalTambah');
-            const modal = bootstrap.Modal.getInstance(modalEl);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalTambah'));
             modal.hide();
-            
-            form.reset();
             loadData();
         } else {
             alert('Gagal menyimpan: ' + result.message);

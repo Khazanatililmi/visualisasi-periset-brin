@@ -38,6 +38,17 @@ def admin_page():
 def admin_js():
     return send_file(os.path.join(os.path.dirname(__file__), 'admin', 'admin.js'))
 
+@app.route('/api/options', methods=['GET'])
+def get_options():
+    """Return existing data for cascading dropdowns in admin form."""
+    try:
+        kel = supabase.table('kelompok_riset').select('id, nama_kelompok').order('nama_kelompok').execute()
+        keg = supabase.table('kegiatan_riset').select('id, judul_kegiatan, kelompok_id').order('judul_kegiatan').execute()
+        per = supabase.table('periset').select('id, nama_lengkap, status').order('nama_lengkap').execute()
+        return jsonify({'kelompok': kel.data, 'kegiatan': keg.data, 'periset': per.data})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/data', methods=['GET'])
 def get_data():
     try:
