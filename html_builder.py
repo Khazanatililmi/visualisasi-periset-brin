@@ -312,24 +312,65 @@ function initCustomEvents() {
     // Simpan warna/opacity asli node agar bisa di-restore
     var originalColors = {};
 
+    function getNodeKategori(nodeId) {
+        var d = dataNode.find(function(x){ return x.id === nodeId; });
+        return d ? d.kategori : '';
+    }
+
     function dimOtherNodes(dipilih) {
-        // Tentukan node relevan (node klik + 2-hop tetangga)
+        var kategori = getNodeKategori(dipilih);
         var focusSet = {};
         focusSet[dipilih] = true;
-        network.getConnectedEdges(dipilih).forEach(function(edgeId){
-            var edge = edges.get(edgeId);
-            var hop1 = (edge.from == dipilih) ? edge.to : edge.from;
-            focusSet[hop1] = true;
-            network.getConnectedEdges(hop1).forEach(function(edgeId2){
-                var edge2 = edges.get(edgeId2);
-                focusSet[(edge2.from == hop1) ? edge2.to : edge2.from] = true;
-            });
-        });
 
-        // Dim node yang tidak relevan, highlight yang relevan
+        if (kategori === 'periset') {
+            // Fokus: periset terpilih + Kegiatan_Riset langsung + Kelompok dari kegiatan itu
+            // TIDAK ikut sertakan periset lain walau terhubung ke kegiatan yang sama
+            network.getConnectedEdges(dipilih).forEach(function(edgeId){
+                var edge = edges.get(edgeId);
+                var hop1 = (edge.from == dipilih) ? edge.to : edge.from;
+                var katHop1 = getNodeKategori(hop1);
+                if (katHop1 === 'Kegiatan_Riset') {
+                    focusSet[hop1] = true;
+                    // Tambahkan Kelompok_Riset dari kegiatan ini saja (bukan periset lain)
+                    network.getConnectedEdges(hop1).forEach(function(edgeId2){
+                        var edge2 = edges.get(edgeId2);
+                        var hop2 = (edge2.from == hop1) ? edge2.to : edge2.from;
+                        if (getNodeKategori(hop2) === 'Kelompok_Riset') {
+                            focusSet[hop2] = true;
+                        }
+                    });
+                }
+            });
+
+        } else if (kategori === 'Kegiatan_Riset') {
+            // Fokus: kegiatan terpilih + Periset langsung + Kelompok induk
+            // TIDAK ikut sertakan kegiatan lain dari periset anggota
+            network.getConnectedEdges(dipilih).forEach(function(edgeId){
+                var edge = edges.get(edgeId);
+                var hop1 = (edge.from == dipilih) ? edge.to : edge.from;
+                var katHop1 = getNodeKategori(hop1);
+                // Hanya periset langsung dan kelompok riset, bukan kegiatan lain
+                if (katHop1 === 'periset' || katHop1 === 'Kelompok_Riset') {
+                    focusSet[hop1] = true;
+                }
+            });
+
+        } else {
+            // Kelompok_Riset: tampilkan semua kegiatan + periset dalam kelompok (2-hop)
+            network.getConnectedEdges(dipilih).forEach(function(edgeId){
+                var edge = edges.get(edgeId);
+                var hop1 = (edge.from == dipilih) ? edge.to : edge.from;
+                focusSet[hop1] = true;
+                network.getConnectedEdges(hop1).forEach(function(edgeId2){
+                    var edge2 = edges.get(edgeId2);
+                    focusSet[(edge2.from == hop1) ? edge2.to : edge2.from] = true;
+                });
+            });
+        }
+
+        // Terapkan dim ke node dan edge
         nodes.forEach(function(n){
             if(focusSet[n.id]){
-                // Restore ke warna asli
                 var restore = {id: n.id, opacity: 1.0};
                 if(originalColors[n.id]) {
                     restore.color = originalColors[n.id].color;
@@ -337,14 +378,12 @@ function initCustomEvents() {
                 }
                 nodes.update(restore);
             } else {
-                // Simpan warna asli kalau belum tersimpan
                 if(!originalColors[n.id]) {
                     originalColors[n.id] = { color: n.color, font: n.font };
                 }
                 nodes.update({id: n.id, opacity: 0.12});
             }
         });
-        // Dim edge yang tidak relevan
         edges.forEach(function(e){
             edges.update({id: e.id, opacity: (focusSet[e.from] && focusSet[e.to]) ? 1.0 : 0.08});
         });
