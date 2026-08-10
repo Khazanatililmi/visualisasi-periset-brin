@@ -152,18 +152,27 @@ def tambah_nodes(
             foto_raw = periset_info.get(node, {}).get("foto_url")
             try:
                 import math
-                foto = None if (foto_raw is None or (isinstance(foto_raw, float) and math.isnan(foto_raw)) or foto_raw == "") else foto_raw
+                foto_raw_clean = None if (foto_raw is None or (isinstance(foto_raw, float) and math.isnan(foto_raw)) or foto_raw == "") else foto_raw
             except Exception:
-                foto = None
+                foto_raw_clean = None
 
-            if not foto and "eksternal prsdi" in status_lower:
+            # Fitur 4: Jika status Eksternal PRSDI, paksa pakai logo BRIN
+            # (foto asli di Supabase tetap aman, hanya render yang berubah)
+            if "eksternal prsdi" in status_lower:
                 foto = "https://ejzmpthmgzfaclpbbtsi.supabase.co/storage/v1/object/public/foto-periset/logo.png"
+            else:
+                foto = foto_raw_clean
 
             # Build Tooltip string with detailed activities and roles
             judul = f"""{node}\nStatus : {status}\nTotal Bobot : {bobot_periset[node]}\nTotal Koneksi (Degree): {centrality_data[node]['count']}\n\nKeterlibatan:\n"""
             
+            # Fitur 2: Sort keterlibatan — Ketua di atas, baru Anggota
             keterlibatan = periset_info.get(node, {}).get("keterlibatan", [])
-            for ket in keterlibatan:
+            keterlibatan_sorted = sorted(
+                keterlibatan,
+                key=lambda k: (0 if k.get('peran', '').lower() == 'ketua' else 1)
+            )
+            for ket in keterlibatan_sorted:
                 kegiatan_str = ket['kegiatan']
                 if len(kegiatan_str) > 50:
                     kegiatan_str = kegiatan_str[:47] + "..."

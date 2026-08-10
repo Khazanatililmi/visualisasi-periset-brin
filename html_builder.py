@@ -309,13 +309,59 @@ function initCustomEvents() {
     }
 
     var highlightedNode = null;
+    // Simpan warna/opacity asli node agar bisa di-restore
+    var originalColors = {};
+
+    function dimOtherNodes(dipilih) {
+        // Tentukan node relevan (node klik + 2-hop tetangga)
+        var focusSet = {};
+        focusSet[dipilih] = true;
+        network.getConnectedEdges(dipilih).forEach(function(edgeId){
+            var edge = edges.get(edgeId);
+            var hop1 = (edge.from == dipilih) ? edge.to : edge.from;
+            focusSet[hop1] = true;
+            network.getConnectedEdges(hop1).forEach(function(edgeId2){
+                var edge2 = edges.get(edgeId2);
+                focusSet[(edge2.from == hop1) ? edge2.to : edge2.from] = true;
+            });
+        });
+
+        // Dim node yang tidak relevan, highlight yang relevan
+        nodes.forEach(function(n){
+            if(focusSet[n.id]){
+                // Restore ke warna asli
+                var restore = {id: n.id, opacity: 1.0};
+                if(originalColors[n.id]) {
+                    restore.color = originalColors[n.id].color;
+                    restore.font  = originalColors[n.id].font;
+                }
+                nodes.update(restore);
+            } else {
+                // Simpan warna asli kalau belum tersimpan
+                if(!originalColors[n.id]) {
+                    originalColors[n.id] = { color: n.color, font: n.font };
+                }
+                nodes.update({id: n.id, opacity: 0.12});
+            }
+        });
+        // Dim edge yang tidak relevan
+        edges.forEach(function(e){
+            edges.update({id: e.id, opacity: (focusSet[e.from] && focusSet[e.to]) ? 1.0 : 0.08});
+        });
+    }
+
+    function restoreAllNodes() {
+        nodes.forEach(function(n){ nodes.update({id: n.id, opacity: 1.0}); });
+        edges.forEach(function(e){ edges.update({id: e.id, opacity: 1.0}); });
+        originalColors = {};
+    }
 
     network.on("click", function(params){
         if(params.nodes.length == 0){
-            // Klik di area kosong: tutup info panel dan reset highlight
+            // Klik di area kosong: tutup info panel dan restore semua
             document.getElementById('infoPanel').classList.remove('open');
             if (highlightedNode !== null) {
-                tampilkanSemua();
+                restoreAllNodes();
                 highlightedNode = null;
             }
             return;
@@ -323,36 +369,20 @@ function initCustomEvents() {
         var dipilih = params.nodes[0];
         highlightedNode = dipilih;
         tampilkanInfoPanel(dipilih);
-
-        // Tentukan node yang relevan (node klik + 2-hop tetangga)
-        var visibleSet = {};
-        visibleSet[dipilih] = true;
-        network.getConnectedEdges(dipilih).forEach(function(edgeId){
-            var edge = edges.get(edgeId);
-            var tujuan1 = (edge.from == dipilih) ? edge.to : edge.from;
-            visibleSet[tujuan1] = true;
-            network.getConnectedEdges(tujuan1).forEach(function(edgeId2){
-                var edge2 = edges.get(edgeId2);
-                var tujuan2 = (edge2.from == tujuan1) ? edge2.to : edge2.from;
-                visibleSet[tujuan2] = true;
-            });
-        });
-
-        // Sembunyikan node yang tidak relevan (tanpa hapus dari canvas)
-        nodes.forEach(function(n){ nodes.update({id:n.id, hidden:!visibleSet[n.id]}); });
-        edges.forEach(function(e){ edges.update({id:e.id, hidden:!(visibleSet[e.from] && visibleSet[e.to])}); });
+        dimOtherNodes(dipilih);
     });
 
     network.on("doubleClick", function(){
         highlightedNode = null;
+        restoreAllNodes();
         resetSemua();
     });
 
-    // Tekan Escape untuk reset highlight
+    // Tekan Escape untuk restore semua
     document.addEventListener('keydown', function(e){
         if (e.key === 'Escape' && highlightedNode !== null) {
             highlightedNode = null;
-            tampilkanSemua();
+            restoreAllNodes();
             document.getElementById('infoPanel').classList.remove('open');
         }
     });
@@ -587,13 +617,19 @@ function terapkanFilter(){
 
     updateStatistik(visible);
 
-    var cP = Object.keys(visible).filter(function(id){
+    var visiblePerisetIds = Object.keys(visible).filter(function(id){
         var d = dataNode.find(function(x){return x.id===id;});
         return d && d.kategori==='periset';
-    }).length;
+    });
+    var cP = visiblePerisetIds.length;
 
     var msg = '✅ Filter Diterapkan  |  '+cP+' periset ditampilkan';
     showToast(msg);
+
+    // Fitur 3: Jika tepat 1 periset yang tampil, otomatis buka info panel-nya
+    if(cP === 1){
+        setTimeout(function(){ tampilkanInfoPanel(visiblePerisetIds[0]); }, 300);
+    }
 
     setTimeout(function(){ network.fit({animation:{duration:700,easingFunction:"easeInOutQuad"}}); }, 150);
 }
