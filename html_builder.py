@@ -12,7 +12,8 @@ def clean_str(s):
     """Bersihkan newline dan karakter berbahaya dari string agar aman di JS."""
     if not isinstance(s, str):
         s = str(s)
-    return s.replace("\n", " ").replace("\r", " ").replace("`", "'").strip()
+    # Hapus karakter yang bisa merusak JavaScript/HTML
+    return s.replace("\\", "").replace('"', "'").replace("\n", " ").replace("\r", " ").replace("`", "'").strip()
 
 def build_html(net, df, G, jumlah_kegiatan, jumlah_periset, bobot_periset, periset_info, centrality_data):
     """
@@ -307,31 +308,54 @@ function initCustomEvents() {
         return;
     }
 
+    var highlightedNode = null;
+
     network.on("click", function(params){
         if(params.nodes.length == 0){
+            // Klik di area kosong: tutup info panel dan reset highlight
             document.getElementById('infoPanel').classList.remove('open');
+            if (highlightedNode !== null) {
+                tampilkanSemua();
+                highlightedNode = null;
+            }
             return;
         }
         var dipilih = params.nodes[0];
+        highlightedNode = dipilih;
         tampilkanInfoPanel(dipilih);
-        nodes.forEach(function(n){ nodes.update({id:n.id, hidden:true}); });
-        edges.forEach(function(e){ edges.update({id:e.id, hidden:true}); });
-        nodes.update({id:dipilih, hidden:false});
+
+        // Tentukan node yang relevan (node klik + 2-hop tetangga)
+        var visibleSet = {};
+        visibleSet[dipilih] = true;
         network.getConnectedEdges(dipilih).forEach(function(edgeId){
             var edge = edges.get(edgeId);
             var tujuan1 = (edge.from == dipilih) ? edge.to : edge.from;
-            nodes.update({id:tujuan1, hidden:false});
-            edges.update({id:edgeId, hidden:false});
+            visibleSet[tujuan1] = true;
             network.getConnectedEdges(tujuan1).forEach(function(edgeId2){
                 var edge2 = edges.get(edgeId2);
                 var tujuan2 = (edge2.from == tujuan1) ? edge2.to : edge2.from;
-                nodes.update({id:tujuan2, hidden:false});
-                edges.update({id:edgeId2, hidden:false});
+                visibleSet[tujuan2] = true;
             });
         });
+
+        // Sembunyikan node yang tidak relevan (tanpa hapus dari canvas)
+        nodes.forEach(function(n){ nodes.update({id:n.id, hidden:!visibleSet[n.id]}); });
+        edges.forEach(function(e){ edges.update({id:e.id, hidden:!(visibleSet[e.from] && visibleSet[e.to])}); });
     });
 
-    network.on("doubleClick", function(){ resetSemua(); });
+    network.on("doubleClick", function(){
+        highlightedNode = null;
+        resetSemua();
+    });
+
+    // Tekan Escape untuk reset highlight
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape' && highlightedNode !== null) {
+            highlightedNode = null;
+            tampilkanSemua();
+            document.getElementById('infoPanel').classList.remove('open');
+        }
+    });
 }
 
 function updateStatistik(visibleIds){
