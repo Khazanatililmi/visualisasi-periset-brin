@@ -98,7 +98,7 @@ def get_options():
 def get_data():
     try:
         response = supabase.table('keanggotaan_riset').select(
-            "kegiatan_id, periset_id, peran, periset(nama_lengkap, status), kegiatan_riset(judul_kegiatan, kelompok_riset(nama_kelompok))"
+            "kegiatan_id, periset_id, peran, periset(nama_lengkap, status), kegiatan_riset(judul_kegiatan, kelompok_riset(id, nama_kelompok))"
         ).execute()
         
         data = []
@@ -110,6 +110,7 @@ def get_data():
             data.append({
                 "keg_id": row.get("kegiatan_id"),
                 "per_id": row.get("periset_id"),
+                "kel_id": kelompok.get("id"),
                 "Kelompok_Riset": kelompok.get("nama_kelompok", "-"),
                 "Kegiatan_Riset": kegiatan.get("judul_kegiatan", "-"),
                 "Periset": periset.get("nama_lengkap", "-"),
@@ -282,6 +283,72 @@ def update_status():
         supabase.table('periset').update({'status': status}).eq('id', per_id).execute()
         _invalidate_cache()
         return jsonify({'status': 'success'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/master/periset', methods=['PUT'])
+def edit_master_periset():
+    try:
+        per_id = request.form.get('id')
+        nama   = request.form.get('nama_lengkap')
+        status = request.form.get('status')
+        
+        if not per_id or not nama:
+            return jsonify({'status': 'error', 'message': 'Missing ID or Nama'}), 400
+            
+        payload = {"nama_lengkap": nama, "status": status}
+        
+        foto = request.files.get('foto')
+        if foto and foto.filename:
+            ext = os.path.splitext(foto.filename)[1]
+            foto_filename = f"{nama.replace(' ', '_').lower()}{ext}"
+            file_bytes = foto.read()
+            content_type = "image/png" if ext.lower() == ".png" else "image/jpeg"
+            try:
+                supabase.storage.from_("foto-periset").upload(foto_filename, file_bytes, file_options={"content-type": content_type, "upsert": "true"})
+                payload["foto_url"] = supabase.storage.from_("foto-periset").get_public_url(foto_filename)
+            except Exception as e:
+                print(f"Gagal upload foto: {e}")
+                
+        supabase.table('periset').update(payload).eq('id', per_id).execute()
+        _invalidate_cache()
+        return jsonify({'status': 'success', 'message': 'Data Periset berhasil diupdate'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/master/kegiatan', methods=['PUT'])
+def edit_master_kegiatan():
+    try:
+        data = request.json
+        keg_id = data.get('id')
+        judul = data.get('judul_kegiatan')
+        
+        if not keg_id or not judul:
+            return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
+            
+        supabase.table('kegiatan_riset').update({'judul_kegiatan': judul}).eq('id', keg_id).execute()
+        _invalidate_cache()
+        return jsonify({'status': 'success', 'message': 'Judul Kegiatan berhasil diupdate'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/master/kelompok', methods=['PUT'])
+def edit_master_kelompok():
+    try:
+        data = request.json
+        kel_id = data.get('id')
+        nama = data.get('nama_kelompok')
+        
+        if not kel_id or not nama:
+            return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
+            
+        supabase.table('kelompok_riset').update({
+            'nama_kelompok': nama,
+            'deskripsi': f"Kelompok Riset {nama}"
+        }).eq('id', kel_id).execute()
+        
+        _invalidate_cache()
+        return jsonify({'status': 'success', 'message': 'Nama Kelompok berhasil diupdate'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 

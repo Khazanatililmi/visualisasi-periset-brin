@@ -100,6 +100,9 @@ function renderTable() {
                     </select>
                 </td>
                 <td>
+                    <button class="btn btn-sm btn-outline-warning me-1" onclick="openEditModal('${kegId}', '${perId}', '${row.kel_id}')" title="Edit Data Master">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteData('${kegId}', '${perId}')" title="Hapus">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -383,7 +386,8 @@ async function saveData() {
         btn.innerHTML = 'Simpan';
         return;
     }
-
+    
+    // Logika save existing form
     const formData = new FormData();
     formData.append('kelompok', kelVal);
     formData.append('kegiatan', kegVal);
@@ -415,4 +419,101 @@ async function saveData() {
         btn.disabled = false;
         btn.innerHTML = 'Simpan';
     }
+}
+
+// ─── Fitur Edit Master Data ──────────────────────────────────────────────
+
+function openEditModal(kegId, perId, kelId) {
+    const row = allData.find(r => r.keg_id == kegId && r.per_id == perId);
+    if(!row) return;
+
+    // Isi tab Periset
+    document.getElementById('editPer_id').value = row.per_id;
+    document.getElementById('editPer_nama').value = row['Periset'];
+    document.getElementById('editPer_status').value = row['Status'];
+    document.getElementById('editPer_foto').value = '';
+
+    // Isi tab Kegiatan
+    document.getElementById('editKeg_id').value = row.keg_id;
+    document.getElementById('editKeg_judul').value = row['Kegiatan_Riset'];
+
+    // Isi tab Kelompok
+    document.getElementById('editKel_id').value = row.kel_id || kelId;
+    document.getElementById('editKel_nama').value = row['Kelompok_Riset'];
+
+    const modal = new bootstrap.Modal(document.getElementById('modalEditMaster'));
+    modal.show();
+}
+
+async function simpanEditPeriset() {
+    const btn = document.querySelector('#pane-periset button');
+    btn.disabled = true;
+    btn.innerHTML = 'Menyimpan...';
+
+    const id = document.getElementById('editPer_id').value;
+    const nama = document.getElementById('editPer_nama').value;
+    const status = document.getElementById('editPer_status').value;
+    const foto = document.getElementById('editPer_foto').files[0];
+
+    const fd = new FormData();
+    fd.append('id', id);
+    fd.append('nama_lengkap', nama);
+    fd.append('status', status);
+    if(foto) fd.append('foto', foto);
+
+    try {
+        const res = await fetch('/api/master/periset', { method: 'PUT', body: fd });
+        const json = await res.json();
+        if(json.status === 'success') {
+            alert('Berhasil mengupdate Data Periset');
+            loadData();
+        } else alert('Gagal: ' + json.message);
+    } catch(e) { alert('Error koneksi'); }
+    finally { btn.disabled = false; btn.innerHTML = 'Simpan Periset'; }
+}
+
+async function simpanEditKegiatan() {
+    const btn = document.querySelector('#pane-kegiatan button');
+    btn.disabled = true;
+    btn.innerHTML = 'Menyimpan...';
+
+    const id = document.getElementById('editKeg_id').value;
+    const judul = document.getElementById('editKeg_judul').value;
+
+    try {
+        const res = await fetch('/api/master/kegiatan', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id, judul_kegiatan: judul})
+        });
+        const json = await res.json();
+        if(json.status === 'success') {
+            alert('Berhasil mengupdate Judul Kegiatan');
+            loadData();
+        } else alert('Gagal: ' + json.message);
+    } catch(e) { alert('Error koneksi'); }
+    finally { btn.disabled = false; btn.innerHTML = 'Simpan Kegiatan'; }
+}
+
+async function simpanEditKelompok() {
+    const btn = document.querySelector('#pane-kelompok button');
+    btn.disabled = true;
+    btn.innerHTML = 'Menyimpan...';
+
+    const id = document.getElementById('editKel_id').value;
+    const nama = document.getElementById('editKel_nama').value;
+
+    try {
+        const res = await fetch('/api/master/kelompok', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: id, nama_kelompok: nama})
+        });
+        const json = await res.json();
+        if(json.status === 'success') {
+            alert('Berhasil mengupdate Nama Kelompok');
+            loadData();
+        } else alert('Gagal: ' + json.message);
+    } catch(e) { alert('Error koneksi'); }
+    finally { btn.disabled = false; btn.innerHTML = 'Simpan Kelompok'; }
 }
