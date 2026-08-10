@@ -8,8 +8,52 @@ SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://ejzmpthmgzfaclpbbtsi.supa
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqem1wdGhtZ3pmYWNscGJidHNpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTA3NzQ2NSwiZXhwIjoyMTAwNjUzNDY1fQ.xO-TN_p4NmAuNQ-qCyIpfeJt-zAXTYVYUKlctVFO5HU")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Cache sederhana agar tidak generate ulang graph setiap request
-_html_cache = None
+# ─── Supabase Storage Cache (shared across all Vercel instances) ───────────────
+# Menyimpan HTML dashboard di Supabase Storage agar semua instance Vercel
+# menggunakan cache yang sama. Ketika data berubah, cache dihapus dari storage
+# sehingga instance manapun yang handle request berikutnya akan regenerate.
+
+_CACHE_BUCKET = "foto-periset"
+_CACHE_PATH   = "__cache__/dashboard.html"
+_mem_cache    = None  # Layer 1: in-memory (cepat, per-instance)
+
+def _get_cached_html():
+    """Ambil HTML dari in-memory (cepat) atau Supabase Storage (shared)."""
+    global _mem_cache
+    if _mem_cache:
+        return _mem_cache
+    try:
+        data = supabase.storage.from_(_CACHE_BUCKET).download(_CACHE_PATH)
+        if data:
+            html = data.decode("utf-8")
+            _mem_cache = html  # Simpan ke memory untuk request berikutnya
+            return html
+    except Exception:
+        pass
+    return None
+
+def _save_cached_html(html: str):
+    """Simpan HTML ke in-memory dan Supabase Storage."""
+    global _mem_cache
+    _mem_cache = html
+    try:
+        supabase.storage.from_(_CACHE_BUCKET).upload(
+            _CACHE_PATH,
+            html.encode("utf-8"),
+            file_options={"content-type": "text/html; charset=utf-8", "upsert": "true"}
+        )
+    except Exception as e:
+        print(f"[Cache] Gagal simpan ke Supabase Storage: {e}")
+
+def _invalidate_cache():
+    """Hapus cache dari memory dan Supabase Storage (trigger regenerasi di semua instance)."""
+    global _mem_cache
+    _mem_cache = None
+    try:
+        supabase.storage.from_(_CACHE_BUCKET).remove([_CACHE_PATH])
+    except Exception:
+        pass  # Tidak masalah jika file tidak ada
+
 
 @app.route('/favicon.ico')
 def favicon():
@@ -17,13 +61,14 @@ def favicon():
 
 @app.route('/')
 def index():
-    global _html_cache
-    # Gunakan cache jika sudah ada (reset cache dengan ?refresh=1)
-    if _html_cache and request.args.get('refresh') != '1':
-        return _html_cache
+    # Paksa regenerasi jika ada ?refresh=1
+    if request.args.get('refresh') != '1':
+        cached = _get_cached_html()
+        if cached:
+            return cached
     import main  # Import di sini agar tidak jalan saat Vercel load module
     html_output = main.main()
-    _html_cache = html_output
+    _save_cached_html(html_output)
     return html_output
 
 @app.route('/login_admin')
@@ -58,7 +103,7 @@ def get_data():
         
         data = []
         for row in response.data:
-            periset = row.get("periset") or {}
+            periset  = row.get("periset") or {}
             kegiatan = row.get("kegiatan_riset") or {}
             kelompok = kegiatan.get("kelompok_riset") or {}
             
@@ -80,11 +125,11 @@ def add_data():
     try:
         kelompok = request.form.get('kelompok')
         kegiatan = request.form.get('kegiatan')
-        periset = request.form.get('periset')
-        peran = request.form.get('peran')
-        status = request.form.get('status')
+        periset  = request.form.get('periset')
+        peran    = request.form.get('peran')
+        status   = request.form.get('status')
         
-        # Upload foto ke Supabase Storage (bukan lokal lagi)
+        # Upload foto ke Supabase Storage
         foto_url = None
         foto = request.files.get('foto')
         if foto and foto.filename:
@@ -100,33 +145,32 @@ def add_data():
         
         # 1. Upsert Kelompok Riset
         kel_res = supabase.table("kelompok_riset").upsert({"nama_kelompok": kelompok, "deskripsi": f"Kelompok Riset {kelompok}"}, on_conflict="nama_kelompok").execute()
-        kel_id = kel_res.data[0]['id']
+        kel_id  = kel_res.data[0]['id']
 
-        # 2. Upsert Kegiatan Riset (Cari berdasarkan judul dulu karena kita nggak set unique di judul)
+        # 2. Cari / buat Kegiatan Riset
         keg_cek = supabase.table("kegiatan_riset").select("id").eq("judul_kegiatan", kegiatan).execute()
         if keg_cek.data and len(keg_cek.data) > 0:
             keg_id = keg_cek.data[0]['id']
         else:
             keg_res = supabase.table("kegiatan_riset").insert({"kelompok_id": kel_id, "judul_kegiatan": kegiatan, "singkatan": ""}).execute()
-            keg_id = keg_res.data[0]['id']
+            keg_id  = keg_res.data[0]['id']
 
         # 3. Upsert Periset
         periset_payload = {"nama_lengkap": periset, "status": status, "total_bobot": 3 if peran.lower() == 'ketua' else 1}
         if foto_url:
             periset_payload["foto_url"] = foto_url
         per_res = supabase.table("periset").upsert(periset_payload, on_conflict="nama_lengkap").execute()
-        per_id = per_res.data[0]['id']
+        per_id  = per_res.data[0]['id']
 
         # 4. Upsert Keanggotaan
         supabase.table("keanggotaan_riset").upsert({
             "kegiatan_id": keg_id,
-            "periset_id": per_id,
-            "peran": peran.capitalize(),
-            "bobot": 3 if peran.lower() == 'ketua' else 1
+            "periset_id":  per_id,
+            "peran":       peran.capitalize(),
+            "bobot":       3 if peran.lower() == 'ketua' else 1
         }, on_conflict="kegiatan_id,periset_id").execute()
         
-        global _html_cache
-        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
+        _invalidate_cache()
         return jsonify({'status': 'success', 'message': 'Data berhasil ditambahkan ke Supabase!'})
     except Exception as e:
         print(f"Error: {e}")
@@ -164,8 +208,7 @@ def delete_data():
                     supabase.table('kelompok_riset').delete().eq('id', kel_id).execute()
                     cascade_info.append('kelompok')
 
-        global _html_cache
-        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
+        _invalidate_cache()
         msg = 'Data berhasil dihapus'
         if cascade_info:
             msg += f'. Otomatis dihapus juga: {", ".join(cascade_info)} yang tidak lagi terkoneksi.'
@@ -203,8 +246,7 @@ def cleanup_orphans():
                 supabase.table('kelompok_riset').delete().eq('id', k['id']).execute()
                 deleted['kelompok'] += 1
 
-        global _html_cache
-        _html_cache = None
+        _invalidate_cache()
         return jsonify({'status': 'success', 'deleted': deleted})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -212,18 +254,17 @@ def cleanup_orphans():
 @app.route('/api/data/peran', methods=['PATCH'])
 def update_peran():
     try:
-        data = request.json
+        data   = request.json
         keg_id = data.get('kegiatan_id')
         per_id = data.get('periset_id')
-        peran = data.get('peran')
+        peran  = data.get('peran')
         
         if not keg_id or not per_id or not peran:
             return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
             
         bobot = 3 if peran.lower() == 'ketua' else 1
         supabase.table('keanggotaan_riset').update({'peran': peran.capitalize(), 'bobot': bobot}).eq('kegiatan_id', keg_id).eq('periset_id', per_id).execute()
-        global _html_cache
-        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
+        _invalidate_cache()
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -231,7 +272,7 @@ def update_peran():
 @app.route('/api/data/status', methods=['PATCH'])
 def update_status():
     try:
-        data = request.json
+        data   = request.json
         per_id = data.get('periset_id')
         status = data.get('status')
         
@@ -239,8 +280,7 @@ def update_status():
             return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
             
         supabase.table('periset').update({'status': status}).eq('id', per_id).execute()
-        global _html_cache
-        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
+        _invalidate_cache()
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
