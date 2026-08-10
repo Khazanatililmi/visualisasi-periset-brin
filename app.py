@@ -114,6 +114,8 @@ def add_data():
             "bobot": 3 if peran.lower() == 'ketua' else 1
         }, on_conflict="kegiatan_id,periset_id").execute()
         
+        global _html_cache
+        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
         return jsonify({'status': 'success', 'message': 'Data berhasil ditambahkan ke Supabase!'})
     except Exception as e:
         print(f"Error: {e}")
@@ -128,6 +130,8 @@ def delete_data():
             return jsonify({'status': 'error', 'message': 'Missing IDs'}), 400
             
         supabase.table('keanggotaan_riset').delete().eq('kegiatan_id', keg_id).eq('periset_id', per_id).execute()
+        global _html_cache
+        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
         return jsonify({'status': 'success', 'message': 'Data berhasil dihapus'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -145,6 +149,8 @@ def update_peran():
             
         bobot = 3 if peran.lower() == 'ketua' else 1
         supabase.table('keanggotaan_riset').update({'peran': peran.capitalize(), 'bobot': bobot}).eq('kegiatan_id', keg_id).eq('periset_id', per_id).execute()
+        global _html_cache
+        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
@@ -160,6 +166,8 @@ def update_status():
             return jsonify({'status': 'error', 'message': 'Missing fields'}), 400
             
         supabase.table('periset').update({'status': status}).eq('id', per_id).execute()
+        global _html_cache
+        _html_cache = None  # Reset cache agar dashboard tampil data terbaru
         return jsonify({'status': 'success'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
